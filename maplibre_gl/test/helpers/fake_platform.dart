@@ -24,6 +24,9 @@ class PlatformCall {
 class FakeMapLibrePlatform extends MapLibrePlatform {
   final calls = <PlatformCall>[];
 
+  /// When set, [addGeoJsonSource] throws this instead of succeeding.
+  Exception? addGeoJsonSourceError;
+
   /// Clears recorded calls.
   void reset() => calls.clear();
 
@@ -401,6 +404,8 @@ class FakeMapLibrePlatform extends MapLibrePlatform {
         {'promoteId': promoteId},
       ),
     );
+    final error = addGeoJsonSourceError;
+    if (error != null) throw error;
   }
 
   @override

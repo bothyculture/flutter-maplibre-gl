@@ -210,52 +210,48 @@ class MapLibreMapController extends ChangeNotifier {
       // Dispose old managers before re-creating them for the new style.
       // This prevents stale in-flight method channel calls from racing
       // with a new style that has cleared the native Style reference.
-      try {
-        await fillManager?.dispose();
-      } catch (_) {}
-      fillManager = null;
-      try {
-        await lineManager?.dispose();
-      } catch (_) {}
-      lineManager = null;
-      try {
-        await circleManager?.dispose();
-      } catch (_) {}
-      circleManager = null;
-      try {
-        await symbolManager?.dispose();
-      } catch (_) {}
-      symbolManager = null;
+      await _disposeAnnotationManagers();
 
       final interactionEnabled = annotationConsumeTapEvents.toSet();
-      for (final type in annotationOrder.toSet()) {
-        final enableInteraction = interactionEnabled.contains(type);
-        switch (type) {
-          case AnnotationType.fill:
-            fillManager = FillManager(
-              this,
-              enableInteraction: enableInteraction,
-            );
-            await fillManager!.initialize();
-          case AnnotationType.line:
-            lineManager = LineManager(
-              this,
-              enableInteraction: enableInteraction,
-            );
-            await lineManager!.initialize();
-          case AnnotationType.circle:
-            circleManager = CircleManager(
-              this,
-              enableInteraction: enableInteraction,
-            );
-            await circleManager!.initialize();
-          case AnnotationType.symbol:
-            symbolManager = SymbolManager(
-              this,
-              enableInteraction: enableInteraction,
-            );
-            await symbolManager!.initialize();
+      try {
+        for (final type in annotationOrder.toSet()) {
+          final enableInteraction = interactionEnabled.contains(type);
+          switch (type) {
+            case AnnotationType.fill:
+              fillManager = FillManager(
+                this,
+                enableInteraction: enableInteraction,
+              );
+              await fillManager!.initialize();
+            case AnnotationType.line:
+              lineManager = LineManager(
+                this,
+                enableInteraction: enableInteraction,
+              );
+              await lineManager!.initialize();
+            case AnnotationType.circle:
+              circleManager = CircleManager(
+                this,
+                enableInteraction: enableInteraction,
+              );
+              await circleManager!.initialize();
+            case AnnotationType.symbol:
+              symbolManager = SymbolManager(
+                this,
+                enableInteraction: enableInteraction,
+              );
+              await symbolManager!.initialize();
+          }
         }
+      } on PlatformException catch (e) {
+        // The native style can be released before its sources are added,
+        // e.g. on iOS while the app is in the background. Nothing awaits
+        // this listener, so rethrowing would surface as an uncaught error.
+        // Leave the managers null and skip onStyleLoadedCallback: the style
+        // is not usable, and the next style load creates them again.
+        debugPrint('MapLibre: style unavailable while adding annotations: $e');
+        await _disposeAnnotationManagers();
+        return;
       }
       onStyleLoadedCallback?.call();
     });
@@ -2435,6 +2431,25 @@ class MapLibreMapController extends ChangeNotifier {
   /// 4. Passing the raw JSON of the map style. This is only supported on Android.
   Future<void> setStyle(String styleString) async {
     return _maplibrePlatform.setStyle(styleString);
+  }
+
+  Future<void> _disposeAnnotationManagers() async {
+    try {
+      await fillManager?.dispose();
+    } catch (_) {}
+    fillManager = null;
+    try {
+      await lineManager?.dispose();
+    } catch (_) {}
+    lineManager = null;
+    try {
+      await circleManager?.dispose();
+    } catch (_) {}
+    circleManager = null;
+    try {
+      await symbolManager?.dispose();
+    } catch (_) {}
+    symbolManager = null;
   }
 
   @override

@@ -1,6 +1,7 @@
 import 'dart:math';
 import 'dart:typed_data';
 
+import 'package:flutter/services.dart' show PlatformException;
 import 'package:flutter/widgets.dart' show EdgeInsets;
 import 'package:flutter_test/flutter_test.dart';
 import 'package:maplibre_gl/maplibre_gl.dart';
@@ -670,6 +671,76 @@ void main() {
       expect(receivedMode, MyLocationTrackingMode.tracking);
 
       trackingController.dispose();
+    });
+  });
+
+  group('Style loaded', () {
+    MapLibreMapController createController(void Function() onStyleLoaded) =>
+        MapLibreMapController(
+          maplibrePlatform: platform,
+          initialCameraPosition: const CameraPosition(target: LatLng(0, 0)),
+          annotationOrder: AnnotationType.values,
+          annotationConsumeTapEvents: AnnotationType.values,
+          onStyleLoadedCallback: onStyleLoaded,
+        );
+
+    test('creates the annotation managers then calls onStyleLoaded', () async {
+      var styleLoaded = false;
+      final styleController = createController(() => styleLoaded = true);
+
+      platform.onMapStyleLoadedPlatform(null);
+      await pumpEventQueue();
+
+      expect(styleLoaded, isTrue);
+      expect(styleController.fillManager, isNotNull);
+      expect(styleController.lineManager, isNotNull);
+      expect(styleController.circleManager, isNotNull);
+      expect(styleController.symbolManager, isNotNull);
+
+      styleController.dispose();
+    });
+
+    test(
+      'a style that is gone before the managers are added leaves them null '
+      'without an uncaught error',
+      () async {
+        var styleLoaded = false;
+        final styleController = createController(() => styleLoaded = true);
+        platform.addGeoJsonSourceError = PlatformException(
+          code: 'styleNotFound',
+          message: 'Style not found',
+        );
+
+        platform.onMapStyleLoadedPlatform(null);
+        await pumpEventQueue();
+
+        expect(styleLoaded, isFalse);
+        expect(styleController.fillManager, isNull);
+        expect(styleController.lineManager, isNull);
+        expect(styleController.circleManager, isNull);
+        expect(styleController.symbolManager, isNull);
+
+        styleController.dispose();
+      },
+    );
+
+    test('the managers are created on the next style load', () async {
+      var styleLoadedCount = 0;
+      final styleController = createController(() => styleLoadedCount++);
+      platform.addGeoJsonSourceError = PlatformException(
+        code: 'styleNotFound',
+      );
+      platform.onMapStyleLoadedPlatform(null);
+      await pumpEventQueue();
+
+      platform.addGeoJsonSourceError = null;
+      platform.onMapStyleLoadedPlatform(null);
+      await pumpEventQueue();
+
+      expect(styleLoadedCount, 1);
+      expect(styleController.symbolManager, isNotNull);
+
+      styleController.dispose();
     });
   });
 
