@@ -1,4 +1,5 @@
 import 'dart:js_interop';
+import 'dart:js_interop_unsafe';
 
 import 'package:maplibre_gl_web/src/geo/geojson.dart';
 import 'package:maplibre_gl_web/src/geo/lng_lat.dart';
@@ -44,6 +45,14 @@ class Event extends JsObjectWrapper<EventJsImpl> {
   }
 
   Point get point => Point.fromJsObject(jsObject.point);
+
+  /// How many fingers are on the map, on a touch event.
+  int get touchCount => jsObject.points?.length ?? 0;
+
+  /// Stops the browser's own handling of the event, such as its menu on a
+  /// right-click.
+  void preventBrowserDefault() =>
+      jsObject.originalEvent?.callMethod('preventDefault'.toJS);
 
   factory Event({
     String? id,

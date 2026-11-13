@@ -23,6 +23,10 @@ class MapLibreMapController extends MapLibrePlatform
 
   final _interactiveFeatureLayerIds = <String>{};
   final _mapSubscriptions = <Subscription>[];
+  late final _longPress = LongPressDetector(
+    onLongPress: (point, latLng) =>
+        onMapLongClickPlatform({'point': point, 'latLng': latLng}),
+  );
 
   bool _trackCameraPosition = false;
   GeolocateControl? _geolocateControl;
@@ -71,6 +75,7 @@ class MapLibreMapController extends MapLibrePlatform
       sub.unsubscribe();
     }
     _mapSubscriptions.clear();
+    _longPress.dispose();
     if (_mapCreated) {
       _map.clearMissingStyleImageHandler();
       _map.remove();
@@ -148,8 +153,13 @@ class MapLibreMapController extends MapLibrePlatform
     _reportMissingRenderer();
     _mapSubscriptions.add(_map.on('style.load', _onStyleLoaded));
     _mapSubscriptions.add(_map.on('click', _onMapClick));
-    // long click not available in web, so it is mapped to double click
-    _mapSubscriptions.add(_map.on('dblclick', _onMapLongClick));
+    // MapLibre GL JS has no long press, so spot a finger held still, and
+    // treat a right-click as a long press on a computer.
+    _mapSubscriptions.add(_map.on('touchstart', _onTouchStart));
+    _mapSubscriptions.add(_map.on('touchmove', _onTouchMove));
+    _mapSubscriptions.add(_map.on('touchend', (_) => _longPress.cancel()));
+    _mapSubscriptions.add(_map.on('touchcancel', (_) => _longPress.cancel()));
+    _mapSubscriptions.add(_map.on('contextmenu', _onContextMenu));
     _mapSubscriptions.add(_map.on('movestart', _onCameraMoveStarted));
     _mapSubscriptions.add(_map.on('move', _onCameraMove));
     _mapSubscriptions.add(_map.on('moveend', _onCameraIdle));
@@ -1028,6 +1038,31 @@ class MapLibreMapController extends MapLibrePlatform
       'point': Point<double>(e.point.x, e.point.y),
       'latLng': LatLng(e.lngLat.lat, e.lngLat.lng),
     });
+  }
+
+  void _onTouchStart(Event e) {
+    _longPress.touchStart(
+      Point<double>(e.point.x.toDouble(), e.point.y.toDouble()),
+      LatLng(e.lngLat.lat.toDouble(), e.lngLat.lng.toDouble()),
+      e.touchCount,
+    );
+  }
+
+  void _onTouchMove(Event e) {
+    _longPress.touchMove(
+      Point<double>(e.point.x.toDouble(), e.point.y.toDouble()),
+      e.touchCount,
+    );
+  }
+
+  void _onContextMenu(Event e) {
+    e.preventBrowserDefault();
+    // Some touch browsers also send this for a finger held down, which the
+    // touch events have already counted.
+    if (_longPress.justFired) {
+      return;
+    }
+    _onMapLongClick(e);
   }
 
   void _onCameraMoveStarted(_) {

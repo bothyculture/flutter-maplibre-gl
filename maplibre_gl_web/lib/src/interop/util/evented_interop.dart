@@ -39,6 +39,12 @@ extension EventJsImplExtension on EventJsImpl {
   external JSAny? get features;
   external PointJsImpl get point;
   external void preventDefault();
+
+  /// Where each finger is, on a touch event.
+  external JSArray? get points;
+
+  /// The browser event the map event came from.
+  external JSObject? get originalEvent;
 }
 
 @JS('Evented')

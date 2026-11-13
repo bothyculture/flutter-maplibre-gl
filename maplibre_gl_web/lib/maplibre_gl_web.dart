@@ -40,6 +40,7 @@ import 'package:maplibre_gl_web/src/util/evented.dart';
 import 'package:maplibre_gl_web/src/utils.dart';
 import 'package:maplibre_gl_web/src/webgl_support.dart';
 import 'package:maplibre_gl_web/src/camera_easing_math.dart';
+import 'package:maplibre_gl_web/src/long_press_detector.dart';
 
 part 'src/convert.dart';
 
