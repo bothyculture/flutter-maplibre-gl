@@ -30,7 +30,8 @@ apply plugin: 'com.android.library'
 // unconditional migration would require. Drop the condition, and apply nothing,
 // once that floor is normal for us.
 def agpMajor = com.android.Version.ANDROID_GRADLE_PLUGIN_VERSION.tokenize('.')[0] as int
-if (agpMajor < 9) {
+def builtInKotlin = (findProperty('android.builtInKotlin') ?: 'true').toString().toBoolean()
+if (agpMajor < 9 || !builtInKotlin) {
     apply plugin: 'kotlin-android'
 }
 
